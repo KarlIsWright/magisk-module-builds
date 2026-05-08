@@ -14,6 +14,8 @@ OVERRIDE_VERSION="$DEFAULT_MODULE_VERSION"
 BUILD_VANILLA=0
 HARDENED_CFLAGS="-O2 -fPIE -D_FORTIFY_SOURCE=3 -fno-strict-overflow -fno-delete-null-pointer-checks"
 HARDENED_LDFLAGS="-pie -Wl,-z,text"
+SSH_README_URL_DEFAULT="https://raw.githubusercontent.com/KarlIsWright/magisk-module-builds/refs/heads/main/magisk-module-ssh-README.md"
+SSH_README_URL="${SSH_README_URL:-$SSH_README_URL_DEFAULT}"
 
 find_ndk() {
   for search_dir in \
@@ -41,6 +43,7 @@ Options:
   --version=VERSION   Override output/module version (default: $DEFAULT_MODULE_VERSION)
   --openssl=VERSION   Override OpenSSL version (default: $OPENSSL_VER)
   --openssh=VERSION   Override OpenSSH version (default: $OPENSSH_VER)
+  --readme-url=URL    Override module README URL (best-effort; default: $SSH_README_URL_DEFAULT)
   --vanilla           Build upstream without tunnel patches
   --help              Show this help message
 
@@ -93,6 +96,10 @@ while [ $# -gt 0 ]; do
       esac
       shift
       ;;
+    --readme-url=*)
+      SSH_README_URL="${1#--readme-url=}"
+      shift
+      ;;
     --vanilla)
       BUILD_VANILLA=1
       shift
@@ -139,6 +146,30 @@ require_cmd() {
     echo "Missing required command: $1" >&2
     exit 1
   }
+}
+
+fetch_module_readme_best_effort() {
+  url="$1"
+  dest="$2"
+  tmp="${dest}.tmp.$$"
+
+  if command -v curl >/dev/null 2>&1; then
+    if curl -fsSL "$url" -o "$tmp" && [ -s "$tmp" ]; then
+      mv -f "$tmp" "$dest"
+      echo "==> Applied remote README: $url"
+      return 0
+    fi
+  elif command -v wget >/dev/null 2>&1; then
+    if wget -qO "$tmp" "$url" && [ -s "$tmp" ]; then
+      mv -f "$tmp" "$dest"
+      echo "==> Applied remote README: $url"
+      return 0
+    fi
+  fi
+
+  rm -f "$tmp" 2>/dev/null || true
+  echo "==> Warning: failed to fetch remote README (or empty response); keeping existing README"
+  return 0
 }
 
 bump_minor_version() {
@@ -480,6 +511,8 @@ TMP_CLONE_DIR=$(mktemp -d "$WORK_ROOT/.tmp.XXXXXX")
 echo "==> Cloning upstream MagiskSSH"
 git clone --depth 1 "$REPO_URL" "$TMP_CLONE_DIR/MagiskSSH"
 cd "$TMP_CLONE_DIR/MagiskSSH"
+echo "==> Fetching module README (best-effort)"
+fetch_module_readme_best_effort "$SSH_README_URL" "$PWD/README.md"
 
 UPSTREAM_VERSION=$(sed -n 's/^version=//p' module_data/module.prop | head -n1)
 [ -n "$UPSTREAM_VERSION" ] || {
