@@ -30,6 +30,8 @@ MODULE_DIR="${MODULE_DIR:-$MODULE_DIR_DEFAULT}"
 ZIP_OUT="${ZIP_OUT:-$ZIP_OUT_DEFAULT}"
 META_INF_SRC="${META_INF_SRC:-$META_INF_SRC_DEFAULT}"
 CLEANUP="${CLEANUP:-0}"
+SHELLS_README_URL_DEFAULT="${SHELLS_README_URL_DEFAULT:-https://raw.githubusercontent.com/KarlIsWright/magisk-module-builds/refs/heads/main/magisk-module-shells-README.md}"
+SHELLS_README_URL="${SHELLS_README_URL:-$SHELLS_README_URL_DEFAULT}"
 
 # Android SDK/NDK detection (override with --ndk/--api or NDK/API env vars)
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/.android/Sdk}}"
@@ -126,6 +128,7 @@ Options (all may also be set via environment variables):
       WARNING: do not set this to your home directory or /.
   --zip_out=PATH
   --meta_inf_src=PATH        (optional; if not set, META-INF is generated)
+  --readme-url=URL           (optional; remote README for module package, best-effort)
   --cleanup                  remove magisk-shells-build and magisk-shells dirs after successful zip
   --ndk=PATH
   --api=LEVEL
@@ -171,6 +174,8 @@ while [ "$#" -gt 0 ]; do
 
     --meta_inf_src=*) META_INF_SRC="${1#*=}" ;;
     --meta_inf_src) shift; META_INF_SRC="$1" ;;
+    --readme-url=*) SHELLS_README_URL="${1#*=}" ;;
+    --readme-url) shift; SHELLS_README_URL="$1" ;;
 
     --cleanup) CLEANUP=1 ;;
 
@@ -280,6 +285,20 @@ ensure_cmd python3
 ensure_cmd zip
 ensure_cmd autoconf
 ensure_cmd autoheader
+fetch_module_readme_best_effort() {
+  local url="$1"
+  local dest="$2"
+  local tmp="${dest}.tmp.$$"
+
+  if curl -fsSL "$url" -o "$tmp" && [ -s "$tmp" ]; then
+    mv -f "$tmp" "$dest"
+    echo "Applied remote README: $url"
+    return 0
+  fi
+
+  rm -f "$tmp" 2>/dev/null || true
+  echo "WARNING: failed to fetch remote README (or empty response); keeping existing module README"
+}
 
 # Safety: refuse to operate on obviously dangerous output dirs.
 canon_path() {
@@ -910,6 +929,7 @@ mkdir -p /data/adb/magisk_shells/fish
 EOF
 
 chmod 755 "$MODULE_DIR/install.sh" "$MODULE_DIR/uninstall.sh" "$MODULE_DIR/service.sh"
+fetch_module_readme_best_effort "$SHELLS_README_URL" "$MODULE_DIR/README.md"
 
 (cd "$MODULE_DIR" && zip -r "$ZIP_OUT" .)
 
