@@ -20,3 +20,14 @@ Project forked from [MagiskSSH][https://gitlab.com/d4rcm4rc/MagiskSSH],
 openssl bumped to 4.0.0
 openssh bumped to 10.3.p1
 AND openssh compiled with tunnel support.
+
+# magisk-module-wireguard.sh
+A simple module that bundles wg, wg-quick, wireguard-go, and tun2socks.  
+Flash the module zip in Magisk, reboot, then configure.
+
+After installation, the module creates:
+- `/data/misc/wireguard/wg0.conf` - Server configuration template
+- `/data/misc/wireguard/gateway.conf` - Forwarding mode settings
+- `/data/adb/modules/wireguard/` - Module directory with binaries
+
+Service control is built in via wireguardd.init (start|stop|restart|status).
