@@ -1,4 +1,5 @@
 This software comes with absolutely no warrenty whatsoever either excplicit or implied.
+
 Pro-Tip: ⚠️ Do not randomly download modules from untrusted sources just because they look cool.
 
 # magisk-module-builds
